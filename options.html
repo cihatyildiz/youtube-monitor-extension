@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Monitor Extension - Settings</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>YouTube Monitor Extension</h1>
+            <p>Configure extension settings and view activity logs</p>
+        </header>
+
+        <section class="settings-section">
+            <h2>Feature Settings</h2>
+            <div class="setting-item">
+                <label class="toggle">
+                    <input type="checkbox" id="enableShortsFilter" checked>
+                    <span class="slider"></span>
+                </label>
+                <div class="setting-info">
+                    <h3>YouTube Shorts Filter</h3>
+                    <p>Hide Shorts content on YouTube homepage</p>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <label class="toggle">
+                    <input type="checkbox" id="enableChannelFilter" checked>
+                    <span class="slider"></span>
+                </label>
+                <div class="setting-info">
+                    <h3>YouTube Channel Filter</h3>
+                    <p>Restrict access to only allowed YouTube channels</p>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <label class="toggle">
+                    <input type="checkbox" id="enableKeywordFilter" checked>
+                    <span class="slider"></span>
+                </label>
+                <div class="setting-info">
+                    <h3>Content Keyword Filter</h3>
+                    <p>Filter inappropriate content on non-YouTube pages</p>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <label class="toggle">
+                    <input type="checkbox" id="enableLogging" checked>
+                    <span class="slider"></span>
+                </label>
+                <div class="setting-info">
+                    <h3>Activity Logging</h3>
+                    <p>Record extension activities and actions</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="channel-section">
+            <h2>Allowed YouTube Channels</h2>
+            <div class="channel-manager">
+                <div class="channel-input">
+                    <input type="text" id="newChannel" placeholder="Enter channel name">
+                    <button id="addChannel">Add Channel</button>
+                </div>
+                <div class="channel-list-container">
+                    <ul id="channelList" class="channel-list">
+                        <!-- Channel list will be populated by JavaScript -->
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="logs-section">
+            <h2>Activity Logs</h2>
+            <div class="logs-header">
+                <button id="clearLogs">Clear Logs</button>
+            </div>
+            <div class="logs-table-container">
+                <table id="logsTable" class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>URL</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Log entries will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer>
+            <p>YouTube Monitor Extension &copy; 2025</p>
+        </footer>
+    </div>
+
+    <script src="options.js" type="module"></script>
+</body>
+</html>
