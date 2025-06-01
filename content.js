@@ -1,10 +1,18 @@
+
 // --- SPA Navigation Detection for YouTube ---
 let lastUrl = location.href;
 function checkUrlChange() {
   if (location.href !== lastUrl) {
     lastUrl = location.href;
-    // Notify background script of navigation
-    chrome.runtime.sendMessage({ action: 'spaNavigation', url: location.href });
+    // Get the current tab ID and send it with the message
+    try {
+      chrome.runtime.sendMessage({ action: 'getTabId' }, (tabId) => {
+        chrome.runtime.sendMessage({ action: 'spaNavigation', url: location.href, tabId });
+      });
+    } catch (e) {
+      // fallback if sendMessage fails
+      chrome.runtime.sendMessage({ action: 'spaNavigation', url: location.href });
+    }
   }
 }
 

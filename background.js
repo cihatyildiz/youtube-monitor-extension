@@ -1,9 +1,21 @@
+// Respond to getTabId requests from content script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message && message.action === 'getTabId') {
+    if (sender.tab && sender.tab.id) {
+      sendResponse(sender.tab.id);
+    } else {
+      sendResponse(0);
+    }
+    return true; // async response
+  }
+});
 // Listen for SPA navigation messages from content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message && message.action === 'spaNavigation' && message.url) {
     chrome.storage.local.get('settings').then(({ settings = utils.getDefaultSettings() }) => {
       const url = message.url;
-      const tabId = sender.tab && sender.tab.id ? sender.tab.id : 0;
+      // Prefer tabId from message, fallback to sender.tab, then 0
+      const tabId = message.tabId || (sender.tab && sender.tab.id) || 0;
       let matched = false;
       if (utils.isYouTubeHomepage(url)) {
         matched = true;
@@ -14,22 +26,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } else if (utils.isYouTubeVideo(url)) {
         matched = true;
         handleYouTubeVideo(tabId, url, settings).catch(() => {});
-      } else if (!url.includes('youtube.com') && settings.enableKeywordFilter) {
-        matched = true;
-        handleNonYouTube(tabId, url, settings).catch(() => {});
       }
-      // Log every URL change, even if not matched by above
-      if (!matched) {
-        // Use logger directly for generic navigation
-        import('./logger.js').then(({ default: logger }) => {
-          logger.addLog({
-            timestamp: new Date().toISOString(),
-            url,
-            action: 'Tab URL changed (unmatched)',
-            type: 'chrome.url.open',
-            tabId
-          });
+      // Always log non-YouTube URLs
+      if (!url.includes('youtube.com')) {
+        logger.addLog({
+          timestamp: new Date().toISOString(),
+          url,
+          action: 'Non-YouTube tab URL',
+          type: 'chrome.url.open',
+          tabId
         });
+        // If keyword filter is enabled, also run the inappropriate content check
+        if (settings.enableKeywordFilter) {
+          handleNonYouTube(tabId, url, settings).catch(() => {});
+        }
       }
     }).catch(() => {});
   }
@@ -83,8 +93,20 @@ function setupNavigationListeners() {
         handleYouTubeChannel(tabId, url, settings).catch(() => {});
       } else if (utils.isYouTubeVideo(url)) {
         handleYouTubeVideo(tabId, url, settings).catch(() => {});
-      } else if (!url.includes('youtube.com') && settings.enableKeywordFilter) {
-        handleNonYouTube(tabId, url, settings).catch(() => {});
+      }
+      // Always log non-YouTube URLs
+      if (!url.includes('youtube.com')) {
+        logger.addLog({
+          timestamp: new Date().toISOString(),
+          url,
+          action: 'Non-YouTube tab URL',
+          type: 'chrome.url.open',
+          tabId
+        });
+        // If keyword filter is enabled, also run the inappropriate content check
+        if (settings.enableKeywordFilter) {
+          handleNonYouTube(tabId, url, settings).catch(() => {});
+        }
       }
     }).catch(() => {});
   });
