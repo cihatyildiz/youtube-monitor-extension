@@ -1,3 +1,20 @@
+// --- SPA Navigation Detection for YouTube ---
+let lastUrl = location.href;
+function checkUrlChange() {
+  if (location.href !== lastUrl) {
+    lastUrl = location.href;
+    // Notify background script of navigation
+    chrome.runtime.sendMessage({ action: 'spaNavigation', url: location.href });
+  }
+}
+
+// Observe URL changes via History API and DOM mutations
+window.addEventListener('popstate', checkUrlChange);
+window.addEventListener('pushstate', checkUrlChange);
+window.addEventListener('replacestate', checkUrlChange);
+const observer = new MutationObserver(checkUrlChange);
+observer.observe(document.body, { childList: true, subtree: true });
+
 /**
  * Content script for YouTube Monitor Extension
  * Performs DOM manipulation and content analysis

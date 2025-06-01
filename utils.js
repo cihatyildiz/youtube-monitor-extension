@@ -46,24 +46,22 @@ export function isYouTubeVideo(url) {
 }
 
 /**
- * Extract channel name or ID from YouTube channel URL
+ * Extract channel ID from YouTube channel URL
  * @param {string} url - The YouTube channel URL
- * @returns {string|null} Channel name/ID or null if not found
+ * @returns {string|null} Channel ID or null if not found
  */
-export function extractChannelFromUrl(url) {
+export function extractChannelIdFromUrl(url) {
   try {
     const urlObj = new URL(url);
-    
-    // Handle /@channelName format
-    if (urlObj.pathname.startsWith('/@')) {
-      return urlObj.pathname.substring(2); // Remove the '/@' prefix
-    }
-    
-    // Handle /channel/ID format
+    // /channel/UCxxxxxxx
     if (urlObj.pathname.startsWith('/channel/')) {
-      return urlObj.pathname.substring(9); // Remove the '/channel/' prefix
+      return urlObj.pathname.split('/')[2];
     }
-    
+    // /@username: need to fetch canonical channel ID (not implemented here)
+    // Optionally, return the username for further lookup
+    if (urlObj.pathname.startsWith('/@')) {
+      return urlObj.pathname.substring(2); // This is the username, not the ID
+    }
     return null;
   } catch (e) {
     return null;
@@ -71,19 +69,16 @@ export function extractChannelFromUrl(url) {
 }
 
 /**
- * Check if a channel is in the allowed list
- * @param {string} channelName - The channel name to check
- * @param {Array} allowedChannels - Array of allowed channel names
+ * Check if a channel is in the allowed list by ID
+ * @param {string} channelId - The channel ID to check
+ * @param {Array} allowedChannels - Array of allowed channel objects {id, name}
  * @returns {boolean} True if channel is allowed
  */
-export function isChannelAllowed(channelName, allowedChannels) {
-  if (!channelName || !allowedChannels || !Array.isArray(allowedChannels)) {
+export function isChannelAllowed(channelId, allowedChannels) {
+  if (!channelId || !allowedChannels || !Array.isArray(allowedChannels)) {
     return false;
   }
-  
-  return allowedChannels.some(channel => 
-    channel.toLowerCase() === channelName.toLowerCase()
-  );
+  return allowedChannels.some(channel => channel.id === channelId);
 }
 
 /**
@@ -138,13 +133,13 @@ export function getDefaultSettings() {
 }
 
 /**
- * Get default allowed channels
+ * Get default allowed channels (by ID and name)
  * @returns {Array} Default allowed channels
  */
 export function getDefaultAllowedChannels() {
   return [
-    'GoogleDevelopers',
-    'TechWithTim',
-    'Fireship'
+    { id: 'UC_x5XG1OV2P6uZZ5FSM9Ttw', name: 'GoogleDevelopers' },
+    { id: 'UC4JX40jDee_tINbkjycV4Sg', name: 'TechWithTim' },
+    { id: 'UCsBjURrPoezykLs9EqgamOA', name: 'Fireship' }
   ];
 }

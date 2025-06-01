@@ -1,3 +1,8 @@
+// Load accountId from storage and set input value
+async function loadAccountId() {
+  const { settings = {} } = await chrome.storage.local.get('settings');
+  accountIdInput.value = settings.accountId || '';
+}
 /**
  * Options page script for YouTube Monitor Extension
  * Provides user interface for extension settings
@@ -16,6 +21,7 @@ const addChannelButton = document.getElementById('addChannel');
 const channelList = document.getElementById('channelList');
 const clearLogsButton = document.getElementById('clearLogs');
 const logsTable = document.getElementById('logsTable').querySelector('tbody');
+const accountIdInput = document.getElementById('accountId');
 
 // Initialize the options page
 async function initialize() {
@@ -24,6 +30,8 @@ async function initialize() {
   
   // Load settings
   await loadSettings();
+  // Load accountId
+  await loadAccountId();
   
   // Load allowed channels
   await loadAllowedChannels();
@@ -38,21 +46,23 @@ async function initialize() {
 // Load settings from storage
 async function loadSettings() {
   const { settings = utils.getDefaultSettings() } = await chrome.storage.local.get('settings');
-  
   // Set toggle states
   enableShortsFilterToggle.checked = settings.enableShortsFilter !== false;
   enableChannelFilterToggle.checked = settings.enableChannelFilter !== false;
   enableKeywordFilterToggle.checked = settings.enableKeywordFilter !== false;
   enableLoggingToggle.checked = settings.enableLogging !== false;
+// Load accountId from storage
+async function loadAccountId() {
+  const { settings = {} } = await chrome.storage.local.get('settings');
+  accountIdInput.value = settings.accountId || '';
+}
 }
 
 // Load allowed channels from storage
 async function loadAllowedChannels() {
   const { allowedChannels = utils.getDefaultAllowedChannels() } = await chrome.storage.local.get('allowedChannels');
-  
   // Clear existing list
   channelList.innerHTML = '';
-  
   // Add each channel to the list
   allowedChannels.forEach(channel => {
     addChannelToList(channel);
@@ -63,64 +73,74 @@ async function loadAllowedChannels() {
 function addChannelToList(channel) {
   const li = document.createElement('li');
   li.className = 'channel-item';
-  
   const channelName = document.createElement('span');
-  channelName.textContent = channel;
+  channelName.textContent = `${channel.name} (${channel.id})`;
   channelName.className = 'channel-name';
-  
   const removeButton = document.createElement('button');
   removeButton.textContent = 'Remove';
   removeButton.className = 'remove-channel';
-  removeButton.addEventListener('click', () => removeChannel(channel));
-  
+  removeButton.addEventListener('click', () => removeChannel(channel.id));
   li.appendChild(channelName);
   li.appendChild(removeButton);
   channelList.appendChild(li);
 }
 
-// Remove a channel
-async function removeChannel(channelToRemove) {
-  // Get current allowed channels
+// Remove a channel by ID
+async function removeChannel(channelIdToRemove) {
   const { allowedChannels = [] } = await chrome.storage.local.get('allowedChannels');
-  
-  // Filter out the channel to remove
-  const updatedChannels = allowedChannels.filter(channel => channel !== channelToRemove);
-  
-  // Save updated channels
+  const updatedChannels = allowedChannels.filter(channel => channel.id !== channelIdToRemove);
   await chrome.storage.local.set({ allowedChannels: updatedChannels });
-  
-  // Reload the channel list
   await loadAllowedChannels();
 }
 
-// Add a new channel
+// Add a new channel by URL or ID
 async function addNewChannel() {
-  const channelName = newChannelInput.value.trim();
-  
-  if (!channelName) {
-    alert('Please enter a channel name');
+  const input = newChannelInput.value.trim();
+  if (!input) {
+    alert('Please enter a channel URL or ID');
     return;
   }
-  
+  let channelId = null;
+  let channelName = null;
+  // Try to parse as URL
+  try {
+    if (input.startsWith('http')) {
+      const urlObj = new URL(input);
+      if (urlObj.pathname.startsWith('/channel/')) {
+        channelId = urlObj.pathname.split('/')[2];
+        channelName = channelId;
+      } else if (urlObj.pathname.startsWith('/@')) {
+        // For /@username, use username as name, but ID lookup is not implemented
+        channelId = urlObj.pathname.substring(2);
+        channelName = channelId;
+      }
+    } else if (/^[A-Za-z0-9_-]{24}$/.test(input)) {
+      // Looks like a channel ID
+      channelId = input;
+      channelName = input;
+    } else {
+      // Assume it's a username (not robust)
+      channelId = input;
+      channelName = input;
+    }
+  } catch (e) {
+    alert('Invalid channel URL or ID');
+    return;
+  }
+  if (!channelId) {
+    alert('Could not extract channel ID');
+    return;
+  }
   // Get current allowed channels
   const { allowedChannels = [] } = await chrome.storage.local.get('allowedChannels');
-  
-  // Check if channel already exists
-  if (allowedChannels.includes(channelName)) {
+  if (allowedChannels.some(channel => channel.id === channelId)) {
     alert('Channel already in the list');
     return;
   }
-  
   // Add new channel
-  const updatedChannels = [...allowedChannels, channelName];
-  
-  // Save updated channels
+  const updatedChannels = [...allowedChannels, { id: channelId, name: channelName }];
   await chrome.storage.local.set({ allowedChannels: updatedChannels });
-  
-  // Clear input
   newChannelInput.value = '';
-  
-  // Reload the channel list
   await loadAllowedChannels();
 }
 
@@ -184,18 +204,40 @@ async function saveSettings() {
     enableShortsFilter: enableShortsFilterToggle.checked,
     enableChannelFilter: enableChannelFilterToggle.checked,
     enableKeywordFilter: enableKeywordFilterToggle.checked,
-    enableLogging: enableLoggingToggle.checked
+    enableLogging: enableLoggingToggle.checked,
+    accountId: accountIdInput.value.trim() || 'user@example.com'
   };
-  
   // Save settings to storage
   await chrome.storage.local.set({ settings });
-  
   // Update logger state
   await logger.setLoggingEnabled(settings.enableLogging);
+
+  // Send settings to remote server
+  try {
+    await fetch('http://localhost:8080/api/v1/createlog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        activity: 'settings.save',
+        data: settings,
+        tabId: 0,
+        accountId: settings.accountId || 'user@example.com'
+      })
+    });
+  } catch (e) {
+    console.error('Failed to send settings to remote server', e);
+  }
 }
 
 // Set up event listeners
 function setupEventListeners() {
+  // Save button
+  const saveButton = document.getElementById('saveSettings');
+  if (saveButton) {
+    saveButton.addEventListener('click', saveSettings);
+  }
+  // Account ID input
+  accountIdInput.addEventListener('change', saveSettings);
   // Settings toggles
   enableShortsFilterToggle.addEventListener('change', saveSettings);
   enableChannelFilterToggle.addEventListener('change', saveSettings);
